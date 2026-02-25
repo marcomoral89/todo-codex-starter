@@ -1,20 +1,35 @@
 const STORAGE_KEY = "todo-app-tasks-v1";
+const PRIORITY_VALUES = ["high", "medium", "low"];
 
 const form = document.getElementById("todo-form");
 const input = document.getElementById("todo-input");
+const priorityInput = document.getElementById("todo-priority");
 const list = document.getElementById("todo-list");
 const taskCount = document.getElementById("task-count");
 const filterButtons = document.querySelectorAll(".filter-btn");
 const clearDoneButton = document.getElementById("clear-done");
 
 let tasks = loadTasks();
-let activeFilter = "all";
+let activeStatusFilter = "all";
+let activePriorityFilter = "all";
 
 function loadTasks() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((task) => task && typeof task.text === "string")
+      .map((task) => ({
+        id: task.id || crypto.randomUUID(),
+        text: task.text,
+        done: Boolean(task.done),
+        priority: PRIORITY_VALUES.includes(task.priority) ? task.priority : "medium",
+      }));
   } catch {
     return [];
   }
@@ -24,11 +39,12 @@ function saveTasks() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
 }
 
-function addTask(text) {
+function addTask(text, priority) {
   tasks.unshift({
     id: crypto.randomUUID(),
     text,
     done: false,
+    priority,
   });
 
   saveTasks();
@@ -57,15 +73,17 @@ function clearDoneTasks() {
 }
 
 function getFilteredTasks() {
-  if (activeFilter === "active") {
-    return tasks.filter((task) => !task.done);
-  }
+  return tasks.filter((task) => {
+    const statusMatch =
+      activeStatusFilter === "all" ||
+      (activeStatusFilter === "active" && !task.done) ||
+      (activeStatusFilter === "done" && task.done);
 
-  if (activeFilter === "done") {
-    return tasks.filter((task) => task.done);
-  }
+    const priorityMatch =
+      activePriorityFilter === "all" || task.priority === activePriorityFilter;
 
-  return tasks;
+    return statusMatch && priorityMatch;
+  });
 }
 
 function renderCount() {
@@ -78,6 +96,26 @@ function renderCount() {
       : `${activeCount} active of ${total}`;
 }
 
+function formatPriority(priority) {
+  return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+function renderEmptyMessage() {
+  if (activeStatusFilter === "all" && activePriorityFilter === "all") {
+    return "No tasks yet. Add your first one above.";
+  }
+
+  if (activeStatusFilter !== "all" && activePriorityFilter !== "all") {
+    return `No ${activePriorityFilter} ${activeStatusFilter} tasks.`;
+  }
+
+  if (activeStatusFilter !== "all") {
+    return `No ${activeStatusFilter} tasks.`;
+  }
+
+  return `No ${activePriorityFilter} priority tasks.`;
+}
+
 function render() {
   const filteredTasks = getFilteredTasks();
   list.innerHTML = "";
@@ -85,10 +123,7 @@ function render() {
   if (filteredTasks.length === 0) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    empty.textContent =
-      activeFilter === "all"
-        ? "No tasks yet. Add your first one above."
-        : `No ${activeFilter} tasks.`;
+    empty.textContent = renderEmptyMessage();
     list.append(empty);
   } else {
     filteredTasks.forEach((task) => {
@@ -101,9 +136,16 @@ function render() {
       checkbox.setAttribute("aria-label", `Mark '${task.text}' as done`);
       checkbox.addEventListener("change", () => toggleTask(task.id));
 
+      const meta = document.createElement("div");
+      meta.className = "task-meta";
+
       const text = document.createElement("span");
       text.className = "text";
       text.textContent = task.text;
+
+      const priorityTag = document.createElement("span");
+      priorityTag.className = `priority-tag ${task.priority}`;
+      priorityTag.textContent = formatPriority(task.priority);
 
       const deleteBtn = document.createElement("button");
       deleteBtn.type = "button";
@@ -112,16 +154,20 @@ function render() {
       deleteBtn.setAttribute("aria-label", `Delete '${task.text}'`);
       deleteBtn.addEventListener("click", () => deleteTask(task.id));
 
-      item.append(checkbox, text, deleteBtn);
+      meta.append(text, priorityTag);
+      item.append(checkbox, meta, deleteBtn);
       list.append(item);
     });
   }
 
   filterButtons.forEach((button) => {
-    button.classList.toggle(
-      "is-active",
-      button.dataset.filter === activeFilter
-    );
+    const group = button.dataset.filterGroup;
+    const value = button.dataset.filter;
+    const isActive =
+      (group === "status" && value === activeStatusFilter) ||
+      (group === "priority" && value === activePriorityFilter);
+
+    button.classList.toggle("is-active", isActive);
   });
 
   renderCount();
@@ -130,18 +176,29 @@ function render() {
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const text = input.value.trim();
+
   if (!text) {
     return;
   }
 
-  addTask(text);
+  addTask(text, priorityInput.value);
   form.reset();
+  priorityInput.value = "medium";
   input.focus();
 });
 
 filterButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    activeFilter = button.dataset.filter;
+    const group = button.dataset.filterGroup;
+
+    if (group === "status") {
+      activeStatusFilter = button.dataset.filter;
+    }
+
+    if (group === "priority") {
+      activePriorityFilter = button.dataset.filter;
+    }
+
     render();
   });
 });

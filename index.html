@@ -16,15 +16,33 @@
     <form id="todo-form" class="todo-form" autocomplete="off">
       <label for="todo-input" class="sr-only">Add a new task</label>
       <input id="todo-input" type="text" placeholder="Add a task..." maxlength="140" required />
+
+      <label for="todo-priority" class="sr-only">Priority</label>
+      <select id="todo-priority" aria-label="Task priority">
+        <option value="high">High</option>
+        <option value="medium" selected>Medium</option>
+        <option value="low">Low</option>
+      </select>
+
       <button type="submit">Add</button>
     </form>
 
     <section class="controls" aria-label="Task filters">
-      <div class="filters" role="tablist" aria-label="Filter tasks">
-        <button type="button" class="filter-btn is-active" data-filter="all">All</button>
-        <button type="button" class="filter-btn" data-filter="active">Active</button>
-        <button type="button" class="filter-btn" data-filter="done">Done</button>
+      <div class="filter-groups">
+        <div class="filters" data-filter-group="status" role="tablist" aria-label="Filter by status">
+          <button type="button" class="filter-btn is-active" data-filter-group="status" data-filter="all">All</button>
+          <button type="button" class="filter-btn" data-filter-group="status" data-filter="active">Active</button>
+          <button type="button" class="filter-btn" data-filter-group="status" data-filter="done">Done</button>
+        </div>
+
+        <div class="filters" data-filter-group="priority" role="tablist" aria-label="Filter by priority">
+          <button type="button" class="filter-btn is-active" data-filter-group="priority" data-filter="all">Any Priority</button>
+          <button type="button" class="filter-btn" data-filter-group="priority" data-filter="high">High</button>
+          <button type="button" class="filter-btn" data-filter-group="priority" data-filter="medium">Medium</button>
+          <button type="button" class="filter-btn" data-filter-group="priority" data-filter="low">Low</button>
+        </div>
       </div>
+
       <button id="clear-done" type="button" class="clear-btn">Clear Done</button>
     </section>
 
